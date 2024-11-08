@@ -4,9 +4,9 @@ import "os"
 
 // Run gojq.
 func Run() int {
-	return (&cli{
+	return (&Cli{
 		inStream:  os.Stdin,
 		outStream: os.Stdout,
 		errStream: os.Stderr,
-	}).run(os.Args[1:])
+	}).RunWithExitCode(os.Args[1:])
 }

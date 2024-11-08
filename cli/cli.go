@@ -29,7 +29,7 @@ const (
 	exitCodeDefaultErr
 )
 
-type cli struct {
+type Cli struct {
 	inStream  io.Reader
 	outStream io.Writer
 	errStream io.Writer
@@ -53,7 +53,7 @@ type cli struct {
 	exitCodeError       error
 }
 
-type flagopts struct {
+type CliFlagOpts struct {
 	OutputRaw     bool              `short:"r" long:"raw-output" description:"output raw strings"`
 	OutputRaw0    bool              `long:"raw-output0" description:"implies -r with NUL character delimiter"`
 	OutputJoin    bool              `short:"j" long:"join-output" description:"implies -r with no newline delimiter"`
@@ -83,8 +83,8 @@ type flagopts struct {
 
 var addDefaultModulePaths = true
 
-func (cli *cli) run(args []string) int {
-	if err := cli.runInternal(args); err != nil {
+func (cli *Cli) RunWithExitCode(args []string) int {
+	if err := cli.RunInternal(args); err != nil {
 		if _, ok := err.(interface{ isEmptyError() }); !ok {
 			fmt.Fprintf(cli.errStream, "%s: %s\n", name, err)
 		}
@@ -96,8 +96,8 @@ func (cli *cli) run(args []string) int {
 	return exitCodeOK
 }
 
-func (cli *cli) runInternal(args []string) (err error) {
-	var opts flagopts
+func (cli *Cli) RunInternal(args []string) (err error) {
+	var opts CliFlagOpts
 	args, err = parseFlags(args, &opts)
 	if err != nil {
 		return &flagParseError{err}
@@ -289,7 +289,7 @@ func slurpFile(name string) (any, error) {
 	return val, nil
 }
 
-func (cli *cli) createInputIter(args []string) (iter inputIter) {
+func (cli *Cli) createInputIter(args []string) (iter inputIter) {
 	var newIter func(io.Reader, string) inputIter
 	switch {
 	case cli.inputRaw:
@@ -320,7 +320,7 @@ func (cli *cli) createInputIter(args []string) (iter inputIter) {
 	return newFilesInputIter(newIter, args, cli.inStream)
 }
 
-func (cli *cli) process(iter inputIter, code *gojq.Code) error {
+func (cli *Cli) process(iter inputIter, code *gojq.Code) error {
 	var err error
 	for {
 		v, ok := iter.Next()
@@ -356,7 +356,7 @@ func (cli *cli) process(iter inputIter, code *gojq.Code) error {
 	return nil
 }
 
-func (cli *cli) printValues(iter gojq.Iter) error {
+func (cli *Cli) printValues(iter gojq.Iter) error {
 	m := cli.createMarshaler()
 	for {
 		v, ok := iter.Next()
@@ -392,7 +392,7 @@ func (cli *cli) printValues(iter gojq.Iter) error {
 	return nil
 }
 
-func (cli *cli) createMarshaler() marshaler {
+func (cli *Cli) createMarshaler() marshaler {
 	if cli.outputYAML {
 		return yamlFormatter(cli.outputIndent)
 	}
@@ -411,7 +411,7 @@ func (cli *cli) createMarshaler() marshaler {
 	return f
 }
 
-func (cli *cli) funcDebug(v any, _ []any) any {
+func (cli *Cli) funcDebug(v any, _ []any) any {
 	if err := newEncoder(false, 0).
 		marshal([]any{"DEBUG:", v}, cli.errStream); err != nil {
 		return err
@@ -422,7 +422,7 @@ func (cli *cli) funcDebug(v any, _ []any) any {
 	return v
 }
 
-func (cli *cli) funcStderr(v any, _ []any) any {
+func (cli *Cli) funcStderr(v any, _ []any) any {
 	if err := (&rawMarshaler{m: newEncoder(false, 0)}).
 		marshal(v, cli.errStream); err != nil {
 		return err

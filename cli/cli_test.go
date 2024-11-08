@@ -60,7 +60,7 @@ func TestCliRun(t *testing.T) {
 				}
 			}()
 			var outStream, errStream strings.Builder
-			cli := cli{
+			cli := Cli{
 				inStream:  strings.NewReader(tc.Input),
 				outStream: &outStream,
 				errStream: &errStream,
@@ -88,7 +88,7 @@ func TestCliRun(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			code := cli.run(tc.Args)
+			code := cli.RunWithExitCode(tc.Args)
 			if tc.Error == "" {
 				if code != tc.ExitCode {
 					t.Errorf("exit code: got: %v, expected: %v", code, tc.ExitCode)
