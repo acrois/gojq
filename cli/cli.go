@@ -30,9 +30,9 @@ const (
 )
 
 type Cli struct {
-	inStream  io.Reader
-	outStream io.Writer
-	errStream io.Writer
+	InStream  io.Reader
+	OutStream io.Writer
+	ErrStream io.Writer
 
 	outputRaw     bool
 	outputRaw0    bool
@@ -86,7 +86,7 @@ var addDefaultModulePaths = true
 func (cli *Cli) RunWithExitCode(args []string) int {
 	if err := cli.RunInternal(args); err != nil {
 		if _, ok := err.(interface{ isEmptyError() }); !ok {
-			fmt.Fprintf(cli.errStream, "%s: %s\n", name, err)
+			fmt.Fprintf(cli.ErrStream, "%s: %s\n", name, err)
 		}
 		if err, ok := err.(interface{ ExitCode() int }); ok {
 			return err.ExitCode()
@@ -103,7 +103,7 @@ func (cli *Cli) RunInternal(args []string) (err error) {
 		return &flagParseError{err}
 	}
 	if opts.Help {
-		fmt.Fprintf(cli.outStream, `%[1]s - Go implementation of jq
+		fmt.Fprintf(cli.OutStream, `%[1]s - Go implementation of jq
 
 Version: %s (rev: %s/%s)
 
@@ -115,11 +115,11 @@ Usage:
 
 `,
 			name, version, revision, runtime.Version())
-		fmt.Fprintln(cli.outStream, formatFlags(&opts))
+		fmt.Fprintln(cli.OutStream, formatFlags(&opts))
 		return nil
 	}
 	if opts.Version {
-		fmt.Fprintf(cli.outStream, "%s %s (rev: %s/%s)\n", name, version, revision, runtime.Version())
+		fmt.Fprintf(cli.OutStream, "%s %s (rev: %s/%s)\n", name, version, revision, runtime.Version())
 		return nil
 	}
 	cli.outputRaw, cli.outputRaw0, cli.outputJoin,
@@ -132,7 +132,7 @@ Usage:
 	} else if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
 		noColor = true
 	} else {
-		f, ok := cli.outStream.(interface{ Fd() uintptr })
+		f, ok := cli.OutStream.(interface{ Fd() uintptr })
 		noColor = !(ok && (isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd())))
 	}
 	if !noColor {
@@ -315,9 +315,9 @@ func (cli *Cli) createInputIter(args []string) (iter inputIter) {
 		}()
 	}
 	if len(args) == 0 {
-		return newIter(cli.inStream, "<stdin>")
+		return newIter(cli.InStream, "<stdin>")
 	}
-	return newFilesInputIter(newIter, args, cli.inStream)
+	return newFilesInputIter(newIter, args, cli.InStream)
 }
 
 func (cli *Cli) process(iter inputIter, code *gojq.Code) error {
@@ -328,7 +328,7 @@ func (cli *Cli) process(iter inputIter, code *gojq.Code) error {
 			break
 		}
 		if e, ok := v.(error); ok {
-			fmt.Fprintf(cli.errStream, "%s: %s\n", name, e)
+			fmt.Fprintf(cli.ErrStream, "%s: %s\n", name, e)
 			err = e
 			continue
 		}
@@ -336,17 +336,17 @@ func (cli *Cli) process(iter inputIter, code *gojq.Code) error {
 			if e, ok := e.(*gojq.HaltError); ok {
 				if v := e.Value(); v != nil {
 					if str, ok := v.(string); ok {
-						cli.errStream.Write([]byte(str))
+						cli.ErrStream.Write([]byte(str))
 					} else {
 						bs, _ := gojq.Marshal(v)
-						cli.errStream.Write(bs)
-						cli.errStream.Write([]byte{'\n'})
+						cli.ErrStream.Write(bs)
+						cli.ErrStream.Write([]byte{'\n'})
 					}
 				}
 				err = e
 				break
 			}
-			fmt.Fprintf(cli.errStream, "%s: %s\n", name, e)
+			fmt.Fprintf(cli.ErrStream, "%s: %s\n", name, e)
 			err = e
 		}
 	}
@@ -367,11 +367,11 @@ func (cli *Cli) printValues(iter gojq.Iter) error {
 			return err
 		}
 		if cli.outputYAMLSeparator {
-			cli.outStream.Write([]byte("---\n"))
+			cli.OutStream.Write([]byte("---\n"))
 		} else {
 			cli.outputYAMLSeparator = cli.outputYAML
 		}
-		if err := m.marshal(v, cli.outStream); err != nil {
+		if err := m.marshal(v, cli.OutStream); err != nil {
 			return err
 		}
 		if cli.exitCodeError != nil {
@@ -383,9 +383,9 @@ func (cli *Cli) printValues(iter gojq.Iter) error {
 		}
 		if !cli.outputYAML {
 			if cli.outputRaw0 {
-				cli.outStream.Write([]byte{'\x00'})
+				cli.OutStream.Write([]byte{'\x00'})
 			} else if !cli.outputJoin {
-				cli.outStream.Write([]byte{'\n'})
+				cli.OutStream.Write([]byte{'\n'})
 			}
 		}
 	}
@@ -413,10 +413,10 @@ func (cli *Cli) createMarshaler() marshaler {
 
 func (cli *Cli) funcDebug(v any, _ []any) any {
 	if err := newEncoder(false, 0).
-		marshal([]any{"DEBUG:", v}, cli.errStream); err != nil {
+		marshal([]any{"DEBUG:", v}, cli.ErrStream); err != nil {
 		return err
 	}
-	if _, err := cli.errStream.Write([]byte{'\n'}); err != nil {
+	if _, err := cli.ErrStream.Write([]byte{'\n'}); err != nil {
 		return err
 	}
 	return v
@@ -424,7 +424,7 @@ func (cli *Cli) funcDebug(v any, _ []any) any {
 
 func (cli *Cli) funcStderr(v any, _ []any) any {
 	if err := (&rawMarshaler{m: newEncoder(false, 0)}).
-		marshal(v, cli.errStream); err != nil {
+		marshal(v, cli.ErrStream); err != nil {
 		return err
 	}
 	return v

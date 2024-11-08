@@ -61,9 +61,9 @@ func TestCliRun(t *testing.T) {
 			}()
 			var outStream, errStream strings.Builder
 			cli := Cli{
-				inStream:  strings.NewReader(tc.Input),
-				outStream: &outStream,
-				errStream: &errStream,
+				InStream:  strings.NewReader(tc.Input),
+				OutStream: &outStream,
+				ErrStream: &errStream,
 			}
 			for _, env := range tc.Env {
 				xs := strings.SplitN(env, "=", 2)
